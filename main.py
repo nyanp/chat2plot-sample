@@ -67,6 +67,8 @@ if api_key and csv_file:
         on_change=initialize_c2p,
     )
 
+    show_config = st.checkbox("Show config json")
+
     if "chat" not in st.session_state:
         initialize_c2p()
 
@@ -97,7 +99,8 @@ if api_key and csv_file:
                     key=str(i),
                 )
             else:
-                message(res.raw_response, key=str(i))
+                if show_config or res.response_type != ResponseType.SUCCESS:
+                    message(res.raw_response, key=str(i))
 
             if res.response_type == ResponseType.SUCCESS:
                 if isinstance(res.figure, Figure):
