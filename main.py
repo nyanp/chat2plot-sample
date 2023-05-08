@@ -1,8 +1,9 @@
+import json
 import logging
 import os
-import subprocess
 import sys
 import time
+from dataclasses import asdict, is_dataclass
 
 import pandas as pd
 import streamlit as st
@@ -15,7 +16,7 @@ sys.path.append("../../")
 
 
 # From here down is all the StreamLit UI.
-st.set_page_config(page_title="Chat2Plot Demo", page_icon=":robot:")
+st.set_page_config(page_title="Chat2Plot Demo", page_icon=":robot:", layout="wide")
 st.header("Chat2Plot Demo")
 st.subheader("Settings")
 
@@ -67,8 +68,6 @@ if api_key and csv_file:
         on_change=initialize_c2p,
     )
 
-    show_config = st.checkbox("Show config json")
-
     if "chat" not in st.session_state:
         initialize_c2p()
 
@@ -82,6 +81,11 @@ if api_key and csv_file:
 
     user_input = get_text()
 
+    def reset_history():
+        initialize_c2p()
+        st.session_state["generated"] = []
+        st.session_state["past"] = []
+
     if user_input:
         with st.spinner(text="Wait for LLM response..."):
             res = c2p(user_input, show_plot=False)
@@ -90,22 +94,33 @@ if api_key and csv_file:
         st.session_state.past.append(user_input)
         st.session_state.generated.append(res)
 
+    st.button("Reset history", on_click=reset_history)
+
     if st.session_state["generated"]:
         for i in range(len(st.session_state["generated"]) - 1, -1, -1):
             res = st.session_state["generated"][i]
-            if res.response_type == ResponseType.NOT_RELATED:
-                message(
-                    "This chat accepts queries to visualize the given data. Please provide a question about the data.",
-                    key=str(i),
-                )
-            else:
-                if show_config or res.response_type != ResponseType.SUCCESS:
-                    message(res.raw_response, key=str(i))
 
             if res.response_type == ResponseType.SUCCESS:
-                if isinstance(res.figure, Figure):
-                    st.plotly_chart(res.figure)
+                col1, col2 = st.columns([2, 1])
+
+                with col2:
+                    config = res.config
+                    if is_dataclass(config):
+                        st.code(json.dumps(asdict(config), indent=2), language="python")
+                    else:
+                        st.code(json.dumps(config, indent=2), language="json")
+                with col1:
+                    if isinstance(res.figure, Figure):
+                        st.plotly_chart(res.figure, use_container_width=True)
+                    else:
+                        st.vega_lite_chart(df, res.config, use_container_width=True)
+            else:
+                if res.response_type == ResponseType.NOT_RELATED:
+                    message(
+                        "This chat accepts queries to visualize the given data. Please provide a question about the data.",
+                        key=str(i),
+                    )
                 else:
-                    st.vega_lite_chart(df, res.config, use_container_width=True)
+                    message(res.raw_response, key=str(i))
 
             message(st.session_state["past"][i], is_user=True, key=str(i) + "_user")
