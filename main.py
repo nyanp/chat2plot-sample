@@ -1,16 +1,19 @@
 import json
 import logging
 import os
+import subprocess
 import sys
 import time
-from dataclasses import asdict, is_dataclass
 
 import pandas as pd
 import streamlit as st
-from chat2plot import ResponseType, chat2plot
 from langchain.chat_models import ChatOpenAI
 from plotly.graph_objs import Figure
+from pydantic import BaseModel
 from streamlit_chat import message
+
+from chat2plot import ResponseType, chat2plot
+from chat2plot.chat2plot import Chat2Vega
 
 sys.path.append("../../")
 
@@ -88,7 +91,10 @@ if api_key and csv_file:
 
     if user_input:
         with st.spinner(text="Wait for LLM response..."):
-            res = c2p(user_input, show_plot=False)
+            if isinstance(c2p, Chat2Vega):
+                res = c2p(user_input, config_only=True)
+            else:
+                res = c2p(user_input, config_only=False, show_plot=False)
         response_type = res.response_type
 
         st.session_state.past.append(user_input)
@@ -105,8 +111,8 @@ if api_key and csv_file:
 
                 with col2:
                     config = res.config
-                    if is_dataclass(config):
-                        st.code(json.dumps(asdict(config), indent=2), language="python")
+                    if isinstance(config, BaseModel):
+                        st.code(config.json(indent=2), language="json")
                     else:
                         st.code(json.dumps(config, indent=2), language="json")
                 with col1:
