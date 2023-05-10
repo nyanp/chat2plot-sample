@@ -109,6 +109,8 @@ if api_key and csv_file:
             if res.response_type == ResponseType.SUCCESS:
                 col1, col2 = st.columns([2, 1])
 
+                message(res.explanation, key=str(i))
+
                 with col2:
                     config = res.config
                     if isinstance(config, BaseModel):
