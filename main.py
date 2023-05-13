@@ -23,10 +23,18 @@ st.set_page_config(page_title="Chat2Plot Demo", page_icon=":robot:", layout="wid
 st.header("Chat2Plot Demo")
 st.subheader("Settings")
 
-logger = logging.getLogger("root")
-handler = logging.StreamHandler(sys.stdout)
-logger.setLevel(logging.INFO)
-logger.addHandler(handler)
+
+def initialize_logger():
+    logger = logging.getLogger("root")
+    handler = logging.StreamHandler(sys.stdout)
+    logger.setLevel(logging.INFO)
+    logger.handlers = [handler]
+    return True
+
+
+if "logger" not in st.session_state:
+    st.session_state["logger"] = initialize_logger()
+
 
 api_key = st.text_input("Step1: Input your OpenAI API-KEY", value="")
 csv_file = st.file_uploader("Step2: Upload csv file", type={"csv"})
@@ -65,7 +73,7 @@ if api_key and csv_file:
 
     chart_format = st.selectbox(
         "Chart format",
-        ("default", "vega"),
+        ("simple", "vega"),
         key="chart_format",
         index=0,
         on_change=initialize_c2p,
@@ -123,12 +131,10 @@ if api_key and csv_file:
                     else:
                         st.vega_lite_chart(df, res.config, use_container_width=True)
             else:
-                if res.response_type == ResponseType.NOT_RELATED:
-                    message(
-                        "This chat accepts queries to visualize the given data. Please provide a question about the data.",
-                        key=str(i),
-                    )
-                else:
-                    message(res.raw_response, key=str(i))
+                st.warning(
+                    f"Failed to render chart. last message: {res.conversation_history[-1].content}",
+                    icon="⚠️",
+                )
+                # message(res.conversation_history[-1].content, key=str(i))
 
             message(st.session_state["past"][i], is_user=True, key=str(i) + "_user")
